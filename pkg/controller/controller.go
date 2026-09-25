@@ -26,6 +26,7 @@ import (
 	maps0 "maps"
 
 	"github.com/haproxytech/client-native/v6/models"
+	crclientsetv3 "github.com/haproxytech/kubernetes-ingress/crs/generated/api/ingress/v3/clientset/versioned"
 	"github.com/haproxytech/kubernetes-ingress/pkg/annotations"
 	"github.com/haproxytech/kubernetes-ingress/pkg/fs"
 	gateway "github.com/haproxytech/kubernetes-ingress/pkg/gateways"
@@ -52,6 +53,7 @@ type HAProxyController struct {
 	gatewayManager           gateway.GatewayManager
 	annotations              annotations.Annotations
 	updateStatusManager      status.UpdateStatusManager
+	crClientV3               crclientsetv3.Interface
 	eventChan                chan k8ssync.SyncDataEvent
 	updatePublishServiceFunc func(ingresses []*ingress.Ingress, publishServiceAddresses []string)
 	chShutdown               chan struct{}

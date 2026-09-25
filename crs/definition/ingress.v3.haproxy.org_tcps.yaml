@@ -3467,8 +3467,35 @@ spec:
               - service
               type: object
             type: array
+          status:
+            description: TCPStatus describes the HAProxy resources generated for a
+              TCP custom resource.
+            properties:
+              backends:
+                items:
+                  description: TCPBackendStatus maps a service in a TCP entry to its
+                    generated HAProxy backend.
+                  properties:
+                    backend_name:
+                      type: string
+                    service_name:
+                      type: string
+                    service_port:
+                      type: integer
+                    tcp_name:
+                      type: string
+                  required:
+                  - backend_name
+                  - service_name
+                  - service_port
+                  - tcp_name
+                  type: object
+                type: array
+            type: object
         required:
         - spec
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}

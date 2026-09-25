@@ -62,6 +62,7 @@ var ErrIgnored = errors.New("ignored resource")
 type K8s interface {
 	GetRestClientset() client.Client
 	GetClientset() *k8sclientset.Clientset
+	GetCRClientV3() crclientsetv3.Interface
 	MonitorChanges(eventChan chan k8ssync.SyncDataEvent, stop chan struct{}, osArgs utils.OSArgs, gatewayAPIInstalled bool)
 	IsGatewayAPIInstalled(gatewayControllerName string) bool
 }
@@ -180,6 +181,10 @@ func (k k8s) GetRestClientset() client.Client {
 
 func (k k8s) GetClientset() *k8sclientset.Clientset {
 	return k.builtInClient
+}
+
+func (k k8s) GetCRClientV3() crclientsetv3.Interface {
+	return k.crClientV3
 }
 
 func (k k8s) MonitorChanges(eventChan chan k8ssync.SyncDataEvent, stop chan struct{}, osArgs utils.OSArgs, gatewayAPIInstalled bool) {

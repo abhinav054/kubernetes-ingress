@@ -38,6 +38,8 @@ type TCPsGetter interface {
 type TCPInterface interface {
 	Create(ctx context.Context, tCP *ingressv3.TCP, opts v1.CreateOptions) (*ingressv3.TCP, error)
 	Update(ctx context.Context, tCP *ingressv3.TCP, opts v1.UpdateOptions) (*ingressv3.TCP, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+	UpdateStatus(ctx context.Context, tCP *ingressv3.TCP, opts v1.UpdateOptions) (*ingressv3.TCP, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
 	Get(ctx context.Context, name string, opts v1.GetOptions) (*ingressv3.TCP, error)

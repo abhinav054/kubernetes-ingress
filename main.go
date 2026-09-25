@@ -171,6 +171,7 @@ func main() {
 		WithEventChan(eventChan).
 		WithStore(s).
 		WithClientSet(k.GetClientset()).
+		WithCRClientV3(k.GetCRClientV3()).
 		WithRestClientSet(k.GetRestClientset()).
 		WithArgs(osArgs).Build()
 

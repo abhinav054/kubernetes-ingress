@@ -25,12 +25,27 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:metadata:annotations="haproxy.org/client-native=v6.4.2"
+// +kubebuilder:subresource:status
 
 // TCP is a specification for a TCP resource
 type TCP struct {
-	Spec              TCPSpec `json:"spec"`
+	Spec              TCPSpec   `json:"spec"`
+	Status            TCPStatus `json:"status,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
+}
+
+// TCPStatus describes the HAProxy resources generated for a TCP custom resource.
+type TCPStatus struct {
+	Backends []TCPBackendStatus `json:"backends,omitempty"`
+}
+
+// TCPBackendStatus maps a service in a TCP entry to its generated HAProxy backend.
+type TCPBackendStatus struct {
+	TCPName     string `json:"tcp_name"`
+	ServiceName string `json:"service_name"`
+	ServicePort int    `json:"service_port"`
+	BackendName string `json:"backend_name"`
 }
 
 type TCPService struct {

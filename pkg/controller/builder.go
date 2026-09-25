@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	crclientsetv3 "github.com/haproxytech/kubernetes-ingress/crs/generated/api/ingress/v3/clientset/versioned"
 	"github.com/haproxytech/kubernetes-ingress/pkg/annotations"
 	"github.com/haproxytech/kubernetes-ingress/pkg/controller/constants"
 	gateway "github.com/haproxytech/kubernetes-ingress/pkg/gateways"
@@ -63,6 +64,7 @@ type Builder struct {
 	updatePublishServiceFunc func(ingresses []*ingress.Ingress, publishServiceAddresses []string)
 	eventChan                chan k8ssync.SyncDataEvent
 	clientSet                *kubernetes.Clientset
+	crClientV3               crclientsetv3.Interface
 	haproxyCfgFile           []byte
 	haproxyEnv               env.Env
 	osArgs                   utils.OSArgs
@@ -140,6 +142,11 @@ func (builder *Builder) WithClientSet(clientSet *kubernetes.Clientset) *Builder 
 	return builder
 }
 
+func (builder *Builder) WithCRClientV3(crClient crclientsetv3.Interface) *Builder {
+	builder.crClientV3 = crClient
+	return builder
+}
+
 func (builder *Builder) WithRestClientSet(restClientSet client.Client) *Builder {
 	builder.restClientSet = restClientSet
 	return builder
@@ -207,6 +214,7 @@ func (builder *Builder) Build() *HAProxyController {
 		updatePublishServiceFunc: builder.updatePublishServiceFunc,
 		gatewayManager:           gatewayManager,
 		updateStatusManager:      updateStatusManager,
+		crClientV3:               builder.crClientV3,
 		prometheusMetricsManager: metrics.New(),
 		PodIP:                    podIP,
 		Hostname:                 hostname,

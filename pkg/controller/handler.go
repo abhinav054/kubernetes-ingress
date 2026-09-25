@@ -52,7 +52,7 @@ func (c *HAProxyController) initHandlers() {
 		&handler.PatternFiles{},
 		annotations.ConfigSnippetHandler{},
 		c.updateStatusManager,
-		handler.NewTCPCustomResource(c.osArgs.IngressClass, c.osArgs.EmptyIngressClass),
+		handler.NewTCPCustomResource(c.osArgs.IngressClass, c.osArgs.EmptyIngressClass, c.crClientV3),
 	}
 
 	defer func() { c.updateHandlers = append(c.updateHandlers, handler.Refresh{}, &handler.Frontend{}) }()
