@@ -72,37 +72,45 @@ func CRDRefresh(log utils.Logger, osArgs utils.OSArgs) error {
 		// check if we have v1 and newest CN version
 		crd.ObjectMeta.ResourceVersion = existingVersion.ObjectMeta.ResourceVersion
 		if versions[0].Name == "v3" {
-			cnInK8s, ok := existingVersion.ObjectMeta.Annotations["haproxy.org/client-native"]
-			if !ok {
-				cnInK8s, ok = existingVersion.ObjectMeta.Annotations["haproxy.org/custom-annotations"]
+			versionAnnotation := "haproxy.org/crd-version"
+			versionLabel := "CRD"
+			newVersion, hasSchemaVersion := crd.ObjectMeta.Annotations[versionAnnotation]
+			if !hasSchemaVersion {
+				versionAnnotation = "haproxy.org/client-native"
+				versionLabel = "CN"
+				var hasVersion bool
+				newVersion, hasVersion = crd.ObjectMeta.Annotations[versionAnnotation]
+				if !hasVersion {
+					newVersion = crd.ObjectMeta.Annotations["haproxy.org/custom-annotations"]
+				}
 			}
 
-			needUpgrade := false
-			if !ok {
-				needUpgrade = true
+			installedVersion, hasInstalledVersion := existingVersion.ObjectMeta.Annotations[versionAnnotation]
+			if !hasInstalledVersion && !hasSchemaVersion {
+				installedVersion, hasInstalledVersion = existingVersion.ObjectMeta.Annotations["haproxy.org/custom-annotations"]
 			}
-			cnNew, ok := crd.ObjectMeta.Annotations["haproxy.org/client-native"]
-			if !ok {
-				cnNew = crd.ObjectMeta.Annotations["haproxy.org/custom-annotations"]
+
+			needUpgrade := !hasInstalledVersion
+			vInstalled := semver.MustParse("0.0.0")
+			if hasInstalledVersion {
+				vInstalled, err = semver.NewVersion(installedVersion)
+				if err != nil {
+					needUpgrade = true
+					log.Error(err.Error())
+					vInstalled = semver.MustParse("0.0.0")
+				}
 			}
-			vK8s, err := semver.NewVersion(cnInK8s)
+			vNew, err := semver.NewVersion(newVersion)
 			if err != nil {
-				needUpgrade = true
-				log.Error(err.Error())
+				return err
 			}
-			vNew, err := semver.NewVersion(cnNew)
-			if err != nil {
-				needUpgrade = true
-				log.Error(err.Error())
-			}
-			log.Infof("CRD %s exists as v1, CN[v%s]", crdName, vK8s.String())
-			if needUpgrade || vNew.GreaterThan(vK8s) {
-				// Upgrade the CRDl
+			log.Infof("CRD %s exists as v1, %s[v%s]", crdName, versionLabel, vInstalled.String())
+			if needUpgrade || vNew.GreaterThan(vInstalled) {
 				_, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Update(context.Background(), &crd, metav1.UpdateOptions{})
 				if err != nil {
 					return err
 				}
-				log.Infof("CRD %s updated, CN[v%s] -> CN[v%s]", crdName, vK8s.String(), vNew.String())
+				log.Infof("CRD %s updated, %s[v%s] -> %s[v%s]", crdName, versionLabel, vInstalled.String(), versionLabel, vNew.String())
 			}
 			continue
 		}

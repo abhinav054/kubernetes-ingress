@@ -23,10 +23,13 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:metadata:annotations="haproxy.org/client-native=v6.4.2"
+// +kubebuilder:metadata:annotations="haproxy.org/crd-version=1.1.0"
+// +kubebuilder:subresource:status
 
 // Backend is a specification for a Backend resource
 type Backend struct {
-	Spec              BackendSpec `json:"spec"`
+	Spec              BackendSpec    `json:"spec"`
+	Status            ResourceStatus `json:"status,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 }

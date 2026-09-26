@@ -38,6 +38,8 @@ type FrontendsGetter interface {
 type FrontendInterface interface {
 	Create(ctx context.Context, frontend *ingressv3.Frontend, opts v1.CreateOptions) (*ingressv3.Frontend, error)
 	Update(ctx context.Context, frontend *ingressv3.Frontend, opts v1.UpdateOptions) (*ingressv3.Frontend, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+	UpdateStatus(ctx context.Context, frontend *ingressv3.Frontend, opts v1.UpdateOptions) (*ingressv3.Frontend, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
 	Get(ctx context.Context, name string, opts v1.GetOptions) (*ingressv3.Frontend, error)

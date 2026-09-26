@@ -42,6 +42,7 @@ import (
 	"github.com/haproxytech/kubernetes-ingress/pkg/status"
 	"github.com/haproxytech/kubernetes-ingress/pkg/store"
 	"github.com/haproxytech/kubernetes-ingress/pkg/utils"
+	"k8s.io/client-go/kubernetes"
 )
 
 var logger = utils.GetLogger()
@@ -53,6 +54,7 @@ type HAProxyController struct {
 	gatewayManager           gateway.GatewayManager
 	annotations              annotations.Annotations
 	updateStatusManager      status.UpdateStatusManager
+	clientSet                *kubernetes.Clientset
 	crClientV3               crclientsetv3.Interface
 	eventChan                chan k8ssync.SyncDataEvent
 	updatePublishServiceFunc func(ingresses []*ingress.Ingress, publishServiceAddresses []string)

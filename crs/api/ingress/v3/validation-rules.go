@@ -25,10 +25,13 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=validationrules,singular=validationrules,scope=Namespaced
 // +kubebuilder:metadata:annotations="haproxy.org/custom-annotations=v1.0.0"
+// +kubebuilder:metadata:annotations="haproxy.org/crd-version=1.1.0"
+// +kubebuilder:subresource:status
 
 // ValidationRules is a specification for a ValidationRules resource
 type ValidationRules struct {
 	Spec              ValidationRulesSpec `json:"spec"`
+	Status            ResourceStatus      `json:"status,omitempty"`
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 }

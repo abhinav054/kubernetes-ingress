@@ -214,6 +214,7 @@ func (builder *Builder) Build() *HAProxyController {
 		updatePublishServiceFunc: builder.updatePublishServiceFunc,
 		gatewayManager:           gatewayManager,
 		updateStatusManager:      updateStatusManager,
+		clientSet:                builder.clientSet,
 		crClientV3:               builder.crClientV3,
 		prometheusMetricsManager: metrics.New(),
 		PodIP:                    podIP,

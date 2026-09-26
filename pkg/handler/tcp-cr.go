@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/haproxytech/client-native/v6/models"
 	v3 "github.com/haproxytech/kubernetes-ingress/crs/api/ingress/v3"
@@ -40,8 +41,10 @@ import (
 	"github.com/haproxytech/kubernetes-ingress/pkg/service"
 	"github.com/haproxytech/kubernetes-ingress/pkg/store"
 	"github.com/haproxytech/kubernetes-ingress/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 )
 
 const tcpServicePrefix = "tcpcr"
@@ -50,6 +53,7 @@ type TCPCustomResource struct {
 	controllerIngressClass string
 	allowEmptyIngressClass bool
 	crClient               crclientsetv3.Interface
+	client                 kubernetes.Interface
 }
 
 type tcpcontext struct {
@@ -59,15 +63,16 @@ type tcpcontext struct {
 }
 
 // var syncIngressClassLog sync.Once
-func NewTCPCustomResource(controllerIngressClass string, allowEmptyIngressClass bool, crClients ...crclientsetv3.Interface) TCPCustomResource {
-	var crClient crclientsetv3.Interface
-	if len(crClients) > 0 {
-		crClient = crClients[0]
+func NewTCPCustomResource(controllerIngressClass string, allowEmptyIngressClass bool, crClient crclientsetv3.Interface, clients ...kubernetes.Interface) TCPCustomResource {
+	var client kubernetes.Interface
+	if len(clients) > 0 {
+		client = clients[0]
 	}
 	return TCPCustomResource{
 		controllerIngressClass: controllerIngressClass,
 		allowEmptyIngressClass: allowEmptyIngressClass,
 		crClient:               crClient,
+		client:                 client,
 	}
 }
 
@@ -118,6 +123,7 @@ func (handler TCPCustomResource) Update(k store.K8s, h haproxy.HAProxy, a annota
 				namespace: ns.Name,
 			}
 			backendStatuses := make([]v3.TCPBackendStatus, 0)
+			var reconcileErrors utils.Errors
 			for _, tcp := range tcpCR.Items {
 				if tcp.CollisionStatus == store.ERROR {
 					logger.Errorf("tcp-cr: skipping tcp '%s/%s/%s' due to collision %s", ctx.namespace, tcp.ParentName, tcp.Name, tcp.Reason)
@@ -127,6 +133,7 @@ func (handler TCPCustomResource) Update(k store.K8s, h haproxy.HAProxy, a annota
 				errSvc := handler.checkService(ctx, tcp.TCPModel)
 				if errSvc != nil {
 					errs.Add(errSvc)
+					reconcileErrors.Add(errSvc)
 					continue
 				}
 
@@ -134,6 +141,7 @@ func (handler TCPCustomResource) Update(k store.K8s, h haproxy.HAProxy, a annota
 				backendName, errH := handler.reconcileFrontend(ctx, owner, tcp.TCPModel, a)
 				if errH != nil {
 					errs.Add(errH)
+					reconcileErrors.Add(errH)
 					continue
 				}
 				backendStatuses = append(backendStatuses, newTCPBackendStatus(tcp.Name, tcp.Service, backendName))
@@ -142,11 +150,16 @@ func (handler TCPCustomResource) Update(k store.K8s, h haproxy.HAProxy, a annota
 				additionalStatuses, errBack := handler.reconcileAdditionalBackends(ctx, tcp.Name, tcp.TCPModel.Services, a)
 				if errBack != nil {
 					errs.Add(errBack)
+					reconcileErrors.Add(errBack)
 					continue
 				}
 				backendStatuses = append(backendStatuses, additionalStatuses...)
 			}
-			if errStatus := handler.updateStatus(ctx.namespace, tcpCR.Name, backendStatuses); errStatus != nil {
+			errorMessage := ""
+			if errReconcile := reconcileErrors.Result(); errReconcile != nil {
+				errorMessage = errReconcile.Error()
+			}
+			if errStatus := handler.updateStatus(ctx.namespace, tcpCR.Name, backendStatuses, errorMessage); errStatus != nil {
 				errs.Add(errStatus)
 			}
 		}
@@ -171,6 +184,10 @@ func (handler TCPCustomResource) checkService(ctx tcpcontext, tcp v3.TCPModel) (
 }
 
 func (handler TCPCustomResource) reconcileFrontend(ctx tcpcontext, owner rc.Owner, tcp v3.TCPModel, a annotations.Annotations) (string, error) {
+	if tcp.DoNotCreate {
+		return handler.reconcileDefaultBackend(ctx, tcp, a, false)
+	}
+
 	cfgFrontendName := cfgFrontendName(ctx.namespace, tcp.Frontend)
 	frontend := tcp.Frontend
 	applyFrontendOverride(ctx.namespace, &frontend)
@@ -200,18 +217,30 @@ func (handler TCPCustomResource) reconcileFrontend(ctx tcpcontext, owner rc.Owne
 		return "", errTCPRequests
 	}
 
+	return handler.reconcileDefaultBackend(ctx, tcp, a, true)
+}
+
+func (handler TCPCustomResource) reconcileDefaultBackend(ctx tcpcontext, tcp v3.TCPModel, a annotations.Annotations, attachToFrontend bool) (string, error) {
 	path := &store.IngressPath{
 		SvcNamespace:     ctx.namespace,
 		SvcName:          tcp.Service.Name,
 		SvcPortInt:       int64(tcp.Service.Port),
-		IsDefaultBackend: true,
+		IsDefaultBackend: attachToFrontend,
 	}
 	svc, err := service.New(ctx.k, path, nil, true, nil, ctx.k.ConfigMaps.Main.Annotations)
 	if err != nil {
 		return "", fmt.Errorf("error resolving tcp backend: %w", err)
 	}
-	if errSvc := svc.SetDefaultBackend(ctx.k, ctx.h, []string{frontend.Name}, a); errSvc != nil {
-		return "", fmt.Errorf("error configuring tcp frontend: %w", errSvc)
+	if attachToFrontend {
+		frontendName := cfgFrontendName(ctx.namespace, tcp.Frontend)
+		if errSvc := svc.SetDefaultBackend(ctx.k, ctx.h, []string{frontendName}, a); errSvc != nil {
+			return "", fmt.Errorf("error configuring tcp frontend: %w", errSvc)
+		}
+	} else {
+		if errSvc := svc.HandleBackend(ctx.k, ctx.h, a); errSvc != nil {
+			return "", fmt.Errorf("error configuring tcp backend: %w", errSvc)
+		}
+		svc.HandleHAProxySrvs(ctx.k, ctx.h)
 	}
 	backendName, err := svc.GetBackendName()
 	if err != nil {
@@ -372,7 +401,7 @@ func newTCPBackendStatus(tcpName string, tcpService v3.TCPService, backendName s
 	}
 }
 
-func (handler TCPCustomResource) updateStatus(namespace, name string, backends []v3.TCPBackendStatus) error {
+func (handler TCPCustomResource) updateStatus(namespace, name string, backends []v3.TCPBackendStatus, errorMessage string) error {
 	if handler.crClient == nil {
 		return nil
 	}
@@ -382,15 +411,50 @@ func (handler TCPCustomResource) updateStatus(namespace, name string, backends [
 	if err != nil {
 		return fmt.Errorf("get TCP CR %s/%s for status update: %w", namespace, name, err)
 	}
-	if slices.Equal(tcp.Status.Backends, backends) {
+	if slices.Equal(tcp.Status.Backends, backends) && tcp.Status.Error == errorMessage {
 		return nil
 	}
 
+	previousError := tcp.Status.Error
 	tcp.Status.Backends = backends
+	tcp.Status.Error = errorMessage
 	if _, err = tcpClient.UpdateStatus(context.Background(), tcp, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("update TCP CR %s/%s status: %w", namespace, name, err)
 	}
+	if errorMessage != "" && errorMessage != previousError {
+		handler.recordWarningEvent(tcp, errorMessage)
+	}
 	return nil
+}
+
+func (handler TCPCustomResource) recordWarningEvent(tcp *v3.TCP, message string) {
+	if handler.client == nil {
+		return
+	}
+	now := metav1.NewTime(time.Now())
+	_, err := handler.client.CoreV1().Events(tcp.Namespace).Create(context.Background(), &corev1.Event{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: tcp.Name + "-",
+			Namespace:    tcp.Namespace,
+		},
+		InvolvedObject: corev1.ObjectReference{
+			Kind:       "TCP",
+			Namespace:  tcp.Namespace,
+			Name:       tcp.Name,
+			UID:        tcp.UID,
+			APIVersion: v3.SchemeGroupVersion.String(),
+		},
+		Type:           corev1.EventTypeWarning,
+		Reason:         "ReconcileError",
+		Message:        message,
+		FirstTimestamp: now,
+		LastTimestamp:  now,
+		Count:          1,
+		Source: corev1.EventSource{
+			Component: "haproxy-ingress",
+		},
+	}, metav1.CreateOptions{})
+	logger.Error(err)
 }
 
 func (handler TCPCustomResource) isSupportedIngressClass(k store.K8s, tcps *store.TCPs) bool {

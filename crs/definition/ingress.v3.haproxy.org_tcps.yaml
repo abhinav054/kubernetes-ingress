@@ -4,6 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     haproxy.org/client-native: v6.4.2
+    haproxy.org/crd-version: 1.1.0
   name: tcps.ingress.v3.haproxy.org
 spec:
   group: ingress.v3.haproxy.org
@@ -40,6 +41,10 @@ spec:
             description: TCPSpec defines the desired state of a TCPService
             items:
               properties:
+                do_not_create:
+                  description: DoNotCreate uses the named existing frontend without
+                    modifying it.
+                  type: boolean
                 frontend:
                   description: |-
                     Frontend Frontend with all its children resources
@@ -3491,6 +3496,8 @@ spec:
                   - tcp_name
                   type: object
                 type: array
+              error:
+                type: string
             type: object
         required:
         - spec

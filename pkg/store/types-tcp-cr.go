@@ -166,6 +166,9 @@ func (a *TCPResourceList) HasCollisionAddressPort() (bool, map[string]TCPResourc
 	bindsWithResourcesMap := make(map[string]bindWithResource)
 
 	for _, atcp := range *a {
+		if atcp.DoNotCreate {
+			continue
+		}
 		for _, aBind := range atcp.Frontend.Binds {
 			if bBindWithResource, ok := bindsWithResourcesMap[AddressPort(aBind)]; ok {
 				btcp := bBindWithResource.resource
@@ -217,6 +220,9 @@ func (a *TCPResourceList) HasCollisionFrontendName() (bool, map[string]TCPResour
 	feNameWithResource := make(map[string]frontendNameWithResource)
 
 	for _, atcp := range *a {
+		if atcp.DoNotCreate {
+			continue
+		}
 		if bBindWithResource, ok := feNameWithResource[atcp.Frontend.Name]; ok {
 			btcp := bBindWithResource.resource
 			areEqual := atcp.Equal(btcp)

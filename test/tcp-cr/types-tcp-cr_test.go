@@ -130,6 +130,41 @@ func TestTCPs_Equal(t *testing.T) {
 	}
 }
 
+func TestTCPs_DoNotCreateDoesNotClaimFrontend(t *testing.T) {
+	tests := []struct {
+		name          string
+		resourcePaths []string
+		collision     func(*store.TCPResourceList) (bool, map[string]store.TCPResourceList)
+	}{
+		{
+			name:          "frontend name",
+			resourcePaths: []string{"manifests/tcp1.yaml", "manifests/tcp1-coll-fe-name.yaml"},
+			collision:     (*store.TCPResourceList).HasCollisionFrontendName,
+		},
+		{
+			name:          "bind address and port",
+			resourcePaths: []string{"manifests/tcp1.yaml", "manifests/tcp1-coll-address-port.yaml"},
+			collision:     (*store.TCPResourceList).HasCollisionAddressPort,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resources := getResourceList(t, tt.resourcePaths)
+			resources.Items[1].DoNotCreate = true
+
+			hasCollision, collisions := tt.collision(&resources.Items)
+
+			require.False(t, hasCollision)
+			require.Nil(t, collisions)
+			for _, resource := range resources.Items {
+				require.Empty(t, resource.CollisionStatus)
+				require.Empty(t, resource.Reason)
+			}
+		})
+	}
+}
+
 func TestTCPs_HasCollisionAddressPort(t *testing.T) {
 	tests := []struct {
 		name                   string

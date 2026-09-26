@@ -4,6 +4,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     haproxy.org/client-native: v6.4.2
+    haproxy.org/crd-version: 1.1.0
   name: defaults.ingress.v3.haproxy.org
 spec:
   group: ingress.v3.haproxy.org
@@ -4379,8 +4380,18 @@ spec:
             required:
             - name
             type: object
+          status:
+            description: |-
+              ResourceStatus describes controller errors observed while reconciling a
+              custom resource.
+            properties:
+              error:
+                type: string
+            type: object
         required:
         - spec
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}

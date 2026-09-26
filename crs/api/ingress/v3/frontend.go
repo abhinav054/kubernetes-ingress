@@ -23,12 +23,15 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:metadata:annotations="haproxy.org/client-native=v6.4.2"
+// +kubebuilder:metadata:annotations="haproxy.org/crd-version=1.1.0"
+// +kubebuilder:subresource:status
 
 // Frontend is a specification for a Frontend resource
 type Frontend struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              FrontendSpec `json:"spec"`
+	Spec              FrontendSpec   `json:"spec"`
+	Status            ResourceStatus `json:"status,omitempty"`
 }
 
 type FrontendSpec struct {
