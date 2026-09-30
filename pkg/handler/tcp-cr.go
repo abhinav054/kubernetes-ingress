@@ -266,6 +266,10 @@ func applyFrontendOverride(namespace string, fe *models.Frontend) {
 
 func (handler TCPCustomResource) applyBindOverride(ctx tcpcontext, bind *models.Bind, owner rc.Owner) {
 	if bind.Ssl {
+		if bind.SslCertificate == "" {
+			bind.SslCertificate = ctx.h.Certs.FrontendDir
+			return
+		}
 		// Does a secret with bind.SSlCertificate exists ?
 		secretManager := secret.NewManager(ctx.k, ctx.h)
 		certName := bind.SslCertificate

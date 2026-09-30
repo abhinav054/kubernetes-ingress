@@ -1,0 +1,8 @@
+apiVersion: ingress.v3.haproxy.org/v3
+kind: TLS
+metadata:
+  name: domain-tls-1
+  namespace: default
+spec:
+  frontend: https
+  secretName: wildcard-domain-tls

@@ -215,6 +215,13 @@ func (c *certs) updateRuntime(filename string, payload []byte, isCa bool) (bool,
 
 	if !alreadyExists && !isCa {
 		dirPath := filepath.Dir(filename)
+		info, statErr := os.Stat(dirPath)
+		if statErr != nil {
+			return false, fmt.Errorf("cannot inspect certificate directory %q: %w", dirPath, statErr)
+		}
+		if info.IsDir() {
+			return false, fmt.Errorf("certificate directory %q requires an HAProxy reload to discover %q", dirPath, filename)
+		}
 		err = c.client.CrtListEntryAdd(dirPath,
 			runtime.CrtListEntry{
 				File: filename,
@@ -233,6 +240,14 @@ func (c *certs) deleteRuntime(crtList, filename string) error {
 	// Keep this mutex for now to ensure that we perform 1 transaction at a time
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	info, statErr := os.Stat(crtList)
+	if statErr != nil {
+		return fmt.Errorf("cannot inspect certificate directory %q: %w", crtList, statErr)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("certificate directory %q requires an HAProxy reload to remove %q", crtList, filename)
+	}
 
 	var err error
 	certFile := path.Join(crtList, filename)
@@ -320,6 +335,7 @@ func (c *certs) refreshCerts(certs map[string]*cert, certDir string) {
 			continue
 		}
 		if !crtOk || !crt.inUse {
+			logger.Infof("certificate '%s' is no longer referenced; scheduling removal from '%s'", filename, certDir)
 			err := c.deleteRuntime(certDir, filename)
 			if err != nil {
 				instance.Reload("Runtime delete of cert file '%s' failed : %s", filename, certErrorForLog(err))
@@ -327,7 +343,14 @@ func (c *certs) refreshCerts(certs map[string]*cert, certDir string) {
 				utils.GetLogger().Debugf("Runtime delete of cert ok [%s]", filename)
 			}
 			fs.AddDelayedFunc(filename, func() {
-				logger.Error(os.Remove(path.Join(certDir, filename)))
+				certPath := path.Join(certDir, filename)
+				if errRemove := os.Remove(certPath); errRemove != nil {
+					if !os.IsNotExist(errRemove) {
+						logger.Errorf("failed to remove stale certificate file %q: %v", certPath, errRemove)
+					}
+					return
+				}
+				logger.Infof("removed stale certificate file [%s]", certPath)
 			})
 			delete(certs, certName)
 		}
@@ -373,21 +396,27 @@ func (c *certs) writeSecret(secret *store.Secret, cert *cert, isCa bool) (err er
 
 func (c *certs) writeCert(cert *cert, filename string, content []byte, isCa bool) error {
 	fs.Writer.Write(func() {
+		certDir := filepath.Dir(filename)
+		if err := os.MkdirAll(certDir, 0o755); err != nil {
+			logger.Errorf("failed to create certificate directory %q: %v", certDir, err)
+			return
+		}
+
 		if _, err := os.Stat(filename); err != nil {
 			// If file does not exist, contrary to the map files, it's not working to create an empty file.
 			// There need to be a valid certificate file.
 			// So, let's create the right content.
 			// Then, on update, it will be written with the delayed function.
 			if !os.IsNotExist(err) {
-				logger.Error(err)
+				logger.Errorf("failed to inspect certificate file %q: %v", filename, err)
 				return
 			}
 			err := renameio.WriteFile(filename, content, 0o666)
 			if err != nil {
-				logger.Error(err)
+				logger.Errorf("failed to write certificate file %q: %v", filename, err)
 				return
 			}
-			utils.GetLogger().Debugf("cert written on disk[%s]", filename)
+			utils.GetLogger().Infof("certificate written on disk [%s]", filename)
 		}
 
 		updated, err := c.updateRuntime(filename, content, isCa)
@@ -402,10 +431,10 @@ func (c *certs) writeCert(cert *cert, filename string, content []byte, isCa bool
 		fs.AddDelayedFunc(filename, func() {
 			err := renameio.WriteFile(filename, content, 0o666)
 			if err != nil {
-				logger.Error(err)
+				logger.Errorf("failed delayed write of certificate file %q: %v", filename, err)
 				return
 			}
-			utils.GetLogger().Debugf("Delayed writing cert on disk ok [%s] ", filename)
+			utils.GetLogger().Infof("delayed certificate write completed [%s]", filename)
 		})
 	})
 

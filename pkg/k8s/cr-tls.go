@@ -42,6 +42,7 @@ func (c TLSCR) GetInformerV3(eventChan chan k8ssync.SyncDataEvent, factory infor
 		logger.Debugf("%s %s: %s", dataNS, status, dataName)
 		if status == store.DELETED {
 			data = nil
+			logger.Infof("TLS CR '%s/%s' deleted; certificate references will be reconciled", dataNS, dataName)
 		}
 		eventChan <- k8ssync.SyncDataEvent{
 			SyncType:  k8ssync.SyncType(c.GetKind()),

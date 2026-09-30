@@ -35,15 +35,8 @@ func (handler TLS) Update(k store.K8s, h haproxy.HAProxy, _ annotations.Annotati
 	dirty := make(map[string]struct{})
 	for _, frontend := range frontends {
 		frontendByName[frontend.Name] = frontend
-		originalLen := len(frontend.SSLFrontUses)
-		uses := frontend.SSLFrontUses[:0]
-		for _, use := range frontend.SSLFrontUses {
-			if use.Metadata == nil || use.Metadata[tlsCROwnerMetadata] == nil {
-				uses = append(uses, use)
-			}
-		}
-		frontend.SSLFrontUses = uses
-		if len(uses) != originalLen {
+		if removeTLSCRSSLFrontUses(frontend) {
+			logger.Infof("TLS reconciliation: removed legacy ssl-f-use entries from frontend '%s'", frontend.Name)
 			dirty[frontend.Name] = struct{}{}
 		}
 	}
@@ -70,6 +63,8 @@ func (handler TLS) Update(k store.K8s, h haproxy.HAProxy, _ annotations.Annotati
 				errs.Add(fmt.Errorf("TLS %s/%s: frontend %q not found", namespace, name, tls.Frontend))
 				continue
 			}
+			logger.Infof("TLS CR '%s/%s': reconciling secret '%s/%s' on frontend '%s'",
+				namespace, name, namespace, tls.SecretName, tls.Frontend)
 			certPath, certErr := secretManager.StorePath(secret.Secret{
 				Name:       types.NamespacedName{Namespace: namespace, Name: tls.SecretName},
 				OwnerType:  secret.OWNERTYPE_TLS_CR,
@@ -80,18 +75,56 @@ func (handler TLS) Update(k store.K8s, h haproxy.HAProxy, _ annotations.Annotati
 				errs.Add(fmt.Errorf("TLS %s/%s: %w", namespace, name, certErr))
 				continue
 			}
-			frontend.SSLFrontUses = append(frontend.SSLFrontUses, &models.SSLFrontUse{
-				Certificate: certPath,
-				Metadata: map[string]interface{}{
-					tlsCROwnerMetadata: namespace + "/" + name,
-				},
-			})
-			dirty[frontend.Name] = struct{}{}
+			logger.Infof("TLS CR '%s/%s': certificate write queued for '%s'", namespace, name, certPath)
+			if len(frontend.Binds) == 0 {
+				errs.Add(fmt.Errorf("TLS %s/%s: frontend %q has no binds", namespace, name, tls.Frontend))
+				continue
+			}
+			if enableFrontendTLS(frontend, h.Certs.FrontendDir) {
+				dirty[frontend.Name] = struct{}{}
+			}
+			for bindName, bind := range frontend.Binds {
+				logger.Infof("TLS CR '%s/%s': frontend '%s' bind '%s' uses crt '%s' (ssl=%t, alpn=%q)",
+					namespace, name, frontend.Name, bindName, bind.SslCertificate, bind.Ssl, bind.Alpn)
+			}
 		}
 	}
 	for frontendName := range dirty {
 		frontend := frontendByName[frontendName]
-		errs.Add(h.FrontendEditStructured(frontendName, frontend))
+		if errEdit := h.FrontendEditStructured(frontendName, frontend); errEdit != nil {
+			logger.Errorf("TLS reconciliation: failed to persist frontend '%s': %v", frontendName, errEdit)
+			errs.Add(errEdit)
+			continue
+		}
+		logger.Infof("TLS reconciliation: persisted frontend '%s'", frontendName)
 	}
 	return errs.Result()
+}
+
+func removeTLSCRSSLFrontUses(frontend *models.Frontend) bool {
+	originalLen := len(frontend.SSLFrontUses)
+	uses := frontend.SSLFrontUses[:0]
+	for _, use := range frontend.SSLFrontUses {
+		if use.Metadata == nil || use.Metadata[tlsCROwnerMetadata] == nil {
+			uses = append(uses, use)
+		}
+	}
+	frontend.SSLFrontUses = uses
+	return len(uses) != originalLen
+}
+
+func enableFrontendTLS(frontend *models.Frontend, certDir string) bool {
+	changed := false
+	for name, bind := range frontend.Binds {
+		if !bind.Ssl {
+			bind.Ssl = true
+			changed = true
+		}
+		if bind.SslCertificate == "" {
+			bind.SslCertificate = certDir
+			changed = true
+		}
+		frontend.Binds[name] = bind
+	}
+	return changed
 }
