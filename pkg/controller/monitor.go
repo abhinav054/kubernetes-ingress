@@ -70,6 +70,13 @@ func (c *HAProxyController) SyncData() {
 				data = job.Data.(*v3.Frontend)
 			}
 			change = c.store.EventFrontendCR(job.Namespace, job.Name, data)
+		case k8ssync.CR_TLS:
+			var data *v3.TLS
+			if job.Data != nil {
+				//revive:disable-next-line:unchecked-type-assertion
+				data = job.Data.(*v3.TLS)
+			}
+			change = c.store.EventTLSCR(job.Namespace, job.Name, data)
 		case k8ssync.NAMESPACE:
 			//revive:disable-next-line:unchecked-type-assertion
 			change = c.store.EventNamespace(ns, job.Data.(*store.Namespace))

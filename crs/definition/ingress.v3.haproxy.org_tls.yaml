@@ -1,0 +1,48 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    haproxy.org/client-native: v6.4.2
+    haproxy.org/crd-version: 1.1.0
+  name: tls.ingress.v3.haproxy.org
+spec:
+  group: ingress.v3.haproxy.org
+  names:
+    kind: TLS
+    listKind: TLSList
+    plural: tls
+    singular: tls
+  scope: Namespaced
+  versions:
+  - name: v3
+    schema:
+      openAPIV3Schema:
+        description: TLS attaches a Kubernetes TLS secret to an HAProxy frontend.
+        properties:
+          apiVersion:
+            description: APIVersion defines the versioned schema of this representation of an object.
+            type: string
+          kind:
+            description: Kind is a string value representing the REST resource this object represents.
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              frontend:
+                description: Frontend is the name of the HAProxy frontend that receives the certificate.
+                minLength: 1
+                type: string
+              secretName:
+                description: SecretName is the name of a kubernetes.io/tls Secret in this resource's namespace.
+                minLength: 1
+                type: string
+            required:
+            - frontend
+            - secretName
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true

@@ -57,6 +57,14 @@ type TCPListerExpansion interface{}
 // TCPNamespaceLister.
 type TCPNamespaceListerExpansion interface{}
 
+// TLSListerExpansion allows custom methods to be added to
+// TLSLister.
+type TLSListerExpansion interface{}
+
+// TLSNamespaceListerExpansion allows custom methods to be added to
+// TLSNamespaceLister.
+type TLSNamespaceListerExpansion interface{}
+
 // ValidationRulesListerExpansion allows custom methods to be added to
 // ValidationRulesLister.
 type ValidationRulesListerExpansion interface{}

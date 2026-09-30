@@ -27,4 +27,6 @@ type GlobalExpansion interface{}
 
 type TCPExpansion interface{}
 
+type TLSExpansion interface{}
+
 type ValidationRulesExpansion interface{}

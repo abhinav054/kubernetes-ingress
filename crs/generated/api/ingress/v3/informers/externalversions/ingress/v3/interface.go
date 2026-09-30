@@ -33,6 +33,8 @@ type Interface interface {
 	Globals() TypedGlobalInformer
 	// TCPs returns a TCPInformer.
 	TCPs() TypedTCPInformer
+	// TLS returns a TLSInformer.
+	TLS() TypedTLSInformer
 	// ValidationRules returns a ValidationRulesInformer.
 	ValidationRules() TypedValidationRulesInformer
 }
@@ -71,6 +73,11 @@ func (v *version) Globals() TypedGlobalInformer {
 // TCPs returns a TypedTCPInformer.
 func (v *version) TCPs() TypedTCPInformer {
 	return &tCPInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// TLS returns a TypedTLSInformer.
+func (v *version) TLS() TypedTLSInformer {
+	return &tLSInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ValidationRules returns a TypedValidationRulesInformer.

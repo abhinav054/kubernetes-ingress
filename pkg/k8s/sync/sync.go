@@ -48,6 +48,7 @@ const (
 	CR_BACKEND      SyncType = "Backend"
 	CR_TCP          SyncType = "TCP"
 	CR_FRONTEND     SyncType = "Frontend"
+	CR_TLS          SyncType = "TLS"
 	PUBLISH_SERVICE SyncType = "PUBLISH_SERVICE"
 	GATEWAYCLASS    SyncType = "GATEWAYCLASS"
 	GATEWAY         SyncType = "GATEWAY"

@@ -43,6 +43,7 @@ type OwnerType string
 const (
 	OWNERTYPE_INGRESS OwnerType = "Ingress"
 	OWNERTYPE_TCP_CR  OwnerType = "TCP_CR"
+	OWNERTYPE_TLS_CR  OwnerType = "TLS_CR"
 )
 
 func NewManager(store store.K8s, h haproxy.HAProxy) *Manager {
@@ -56,12 +57,24 @@ func (s Manager) Store(sec Secret) {
 	if _, ok := s.store.SecretsProcessed[sec.Name.String()]; ok {
 		return
 	}
+	_, _ = s.StorePath(sec)
+}
+
+func (s Manager) StorePath(sec Secret) (string, error) {
+	if _, ok := s.store.SecretsProcessed[sec.Name.String()]; ok {
+		secret, err := s.store.GetSecret(sec.Name.Namespace, sec.Name.Name)
+		if err != nil {
+			return "", err
+		}
+		return s.haproxy.AddSecret(secret, sec.SecretType)
+	}
 	secret, secErr := s.store.GetSecret(sec.Name.Namespace, sec.Name.Name)
 	if secErr != nil {
 		logger.Warningf("%s '%s/%s': %s", sec.OwnerType, sec.Name.Namespace, sec.OwnerName, secErr)
-		return
+		return "", secErr
 	}
 	s.store.SecretsProcessed[sec.Name.String()] = struct{}{}
-	_, err := s.haproxy.AddSecret(secret, sec.SecretType)
+	path, err := s.haproxy.AddSecret(secret, sec.SecretType)
 	logger.Error(err)
+	return path, err
 }

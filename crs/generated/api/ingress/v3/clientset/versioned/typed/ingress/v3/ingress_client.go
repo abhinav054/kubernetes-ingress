@@ -32,6 +32,7 @@ type IngressV3Interface interface {
 	FrontendsGetter
 	GlobalsGetter
 	TCPsGetter
+	TLSGetter
 	ValidationRulesGetter
 }
 
@@ -58,6 +59,10 @@ func (c *IngressV3Client) Globals(namespace string) GlobalInterface {
 
 func (c *IngressV3Client) TCPs(namespace string) TCPInterface {
 	return newTCPs(c, namespace)
+}
+
+func (c *IngressV3Client) TLS(namespace string) TLSInterface {
+	return newTLS(c, namespace)
 }
 
 func (c *IngressV3Client) ValidationRules(namespace string) ValidationRulesInterface {

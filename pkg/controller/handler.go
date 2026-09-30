@@ -55,7 +55,9 @@ func (c *HAProxyController) initHandlers() {
 		handler.NewTCPCustomResource(c.osArgs.IngressClass, c.osArgs.EmptyIngressClass, c.crClientV3, c.clientSet),
 	}
 
-	defer func() { c.updateHandlers = append(c.updateHandlers, handler.Refresh{}, &handler.Frontend{}) }()
+	defer func() {
+		c.updateHandlers = append(c.updateHandlers, &handler.Frontend{}, handler.TLS{}, handler.Refresh{})
+	}()
 
 	if c.osArgs.PrometheusEnabled {
 		c.beforeUpdateHandlers = []UpdateHandler{

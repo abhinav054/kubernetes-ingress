@@ -71,6 +71,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&GlobalList{},
 		&TCP{},
 		&TCPList{},
+		&TLS{},
+		&TLSList{},
 		&ValidationRules{},
 		&ValidationRulesList{},
 	)

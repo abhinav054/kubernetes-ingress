@@ -20,6 +20,9 @@ var ValidationRules []byte
 //go:embed ingress.v3.haproxy.org_frontends.yaml
 var Frontends []byte
 
+//go:embed ingress.v3.haproxy.org_tls.yaml
+var TLS []byte
+
 func GetCRDs() map[string][]byte {
 	return map[string][]byte{
 		"defaults.ingress.v3.haproxy.org":        Defaults,
@@ -28,5 +31,6 @@ func GetCRDs() map[string][]byte {
 		"tcps.ingress.v3.haproxy.org":            TCPs,
 		"validationrules.ingress.v3.haproxy.org": ValidationRules,
 		"frontends.ingress.v3.haproxy.org":       Frontends,
+		"tls.ingress.v3.haproxy.org":             TLS,
 	}
 }

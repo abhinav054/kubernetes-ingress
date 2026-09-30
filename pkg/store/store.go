@@ -218,6 +218,7 @@ func (k K8s) GetNamespace(name string) *Namespace {
 			Backends:  make(map[string]*v3.BackendSpec),
 			TCPsPerCR: make(map[string]*TCPs),
 			Frontends: make(map[string]*v3.FrontendSpec),
+			TLS:       make(map[string]*v3.TLSSpec),
 		},
 		Gateways:        make(map[string]*Gateway),
 		TCPRoutes:       make(map[string]*TCPRoute),

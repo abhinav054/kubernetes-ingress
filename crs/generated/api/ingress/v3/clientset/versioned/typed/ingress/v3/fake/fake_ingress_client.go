@@ -47,6 +47,10 @@ func (c *FakeIngressV3) TCPs(namespace string) v3.TCPInterface {
 	return newFakeTCPs(c, namespace)
 }
 
+func (c *FakeIngressV3) TLS(namespace string) v3.TLSInterface {
+	return newFakeTLS(c, namespace)
+}
+
 func (c *FakeIngressV3) ValidationRules(namespace string) v3.ValidationRulesInterface {
 	return newFakeValidationRules(c, namespace)
 }
