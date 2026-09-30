@@ -61,6 +61,7 @@ spec:
 A `TCP` CR contains a list of TCP services definitions.
 Each of them has:
 - a `name`
+- an optional `do_not_create` flag that creates only the backend and leaves frontend management to another resource or process
 - a `frontend` section that contains:
   - a `frontend`: any setting from client-native frontend model is allowed (**except the `mode` that is forced to `tcp`**)
   - a list of `binds`: any setting from client-native `models.Bind` model is allowed
@@ -83,6 +84,50 @@ The following table explains what is configurable is the Frontend section, what 
 | filter_list | `models.Filters` | `filter` |
 | log_target_list | `models.LogTargets` | `log` |
 | tcp_request_rule_list | `models.TCPRequestRules` | `tcp-request` |
+
+
+### Using an existing frontend with `do_not_create`
+
+Set `do_not_create: true` when the TCP CR should create and reconcile the
+backend for a Kubernetes Service without creating or modifying an HAProxy
+frontend. This is useful when the frontend is managed separately, for example
+through a `Frontend` CR or an external HAProxy configuration process.
+
+The `frontend`, `name`, and `service` fields remain required by the TCP CRD.
+However, when `do_not_create` is enabled, the controller ignores the frontend
+configuration, including its name, binds, ACLs, and switching rules. It also
+does not set the existing frontend's `default_backend`; the separately managed
+frontend must reference the generated backend explicitly.
+
+For example, this resource creates the backend
+`test_svc_http-echo_https` and does not create a
+`tcpcr_test_externally-managed` frontend:
+
+```yaml
+apiVersion: ingress.v3.haproxy.org/v3
+kind: TCP
+metadata:
+  annotations:
+    ingress.class: haproxy
+  name: tcp-backend
+  namespace: test
+spec:
+- name: http-echo-backend
+  do_not_create: true
+  frontend:
+    name: externally-managed
+  service:
+    name: http-echo
+    port: 8443
+```
+
+The separately managed HAProxy frontend can then route to that backend, for
+example with `default_backend test_svc_http-echo_https`.
+
+Entries with `do_not_create: true` do not participate in TCP CR frontend-name
+or bind-address collision detection because they do not own a frontend or any
+binds. Deleting the TCP CR removes its generated backend, but does not remove or
+change the separately managed frontend.
 
 
 ### Full example and corresponding haproxy configuration
