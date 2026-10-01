@@ -361,11 +361,17 @@ explaining that :
 
 *This works accross all namespaces*
 
-## Note on SSL
+## TLS on a TCP frontend
 
-To setup SSL in a TCP CR (with the same Service and Pod defined above):
+To enable TLS on a frontend created by a TCP CR, set `ssl: true` on the bind
+and omit `ssl_certificate`. The controller binds the shared frontend
+certificate directory to the TCP frontend.
 
-```yaml
+Use a `TLS` resource to add a Kubernetes TLS Secret to that directory. The TLS
+resource must reference the generated HAProxy frontend name, which follows the
+`tcpcr_<namespace>_<tcpcr.frontend.name>` pattern.
+
+~~~yaml
 apiVersion: ingress.v3.haproxy.org/v3
 kind: TCP
 metadata:
@@ -380,65 +386,6 @@ spec:
         name: v4
         port: 32766
         ssl: true
-        ssl_certificate: tcp-test-cert
-      v4v6:
-        address: '::'
-        name: v4v6
-        port: 32766
-        v4v6: true
-    log_format: '%{+Q}o %t %s'
-    name: fe-http-echo-443
-    tcplog: true
-  name: tcp-http-echo-443
-  service:
-    name: http-echo
-    port: 443
----
-kind: Secret
-apiVersion: v1
-metadata:
-  name: tcp-test-cert
-  namespace: test
-data:
-  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURvekNDQW91Z0F3SUJBZ0lVY3NtV0pSZ2dtd2hxNjVsMnRUMFBlakZKS1dFd0RRWUpLb1pJaHZjTkFRRUwKQlFBd1lURUxNQWtHQTFVRUJoTUNWVk14RFRBTEJnTlZCQWdNQkU5b2FXOHhFVEFQQmdOVkJBY01DRU52YkhWdApZblZ6TVJJd0VBWURWUVFLREFsTmVVTnZiWEJoYm5reEhEQWFCZ05WQkFNTUUyTnlaSFJqY0MxMFpYTjBMbWhoCmNISnZlSGt3SGhjTk1qUXdOVEl5TURneE1qUXlXaGNOTWpVd05USXlNRGd4TWpReVdqQmhNUXN3Q1FZRFZRUUcKRXdKVlV6RU5NQXNHQTFVRUNBd0VUMmhwYnpFUk1BOEdBMVVFQnd3SVEyOXNkVzFpZFhNeEVqQVFCZ05WQkFvTQpDVTE1UTI5dGNHRnVlVEVjTUJvR0ExVUVBd3dUWTNKa2RHTndMWFJsYzNRdWFHRndjbTk0ZVRDQ0FTSXdEUVlKCktvWklodmNOQVFFQkJRQURnZ0VQQURDQ0FRb0NnZ0VCQU14MnQzdjRvWmRaaVZmVm1mZWVabU5Sc2N5MGowUUgKWDFMSWpzQXgxMGF6RUk3cWxDL3A1TVB1Z04zSElJazFRY1RPVEpvMlNGMGluLzZQODFNUGNtNUFvZ2ZpZUhnSApVSUhkcDF0aDR0bEN1NXEzOTdLT2hHSlZBZnhINUw5WmxyTTcraHFGTnAySGJPTUtrcTU0T29hTTgzL0V5U1lMCnFPZVArdFF0MzlCSEU2eEtCd0M0YWZ1bVAyckJMdWRPNVJ5NjFyZk5SLzBzbmZMUUFYNEhERzl6YVlONHZhSmcKLzF6aVFnR0FVcnY2NFgxS2Z2WlZMTkUxdm55d2M0OHlGYlQ5L1dGQzZKYnplbjFNdzd4YmM1M09sTEhWZVNCWgphSWU4UHkvOUJKSjQvdGtHVWROV2ZKWEFEcTRGM014eDMzczJvVS9xMXhITERDZk5OUGhlVzJzQ0F3RUFBYU5UCk1GRXdIUVlEVlIwT0JCWUVGRXJBWGJBMk1nb1UzZXU1dDJXOVF2OXp5UnRBTUI4R0ExVWRJd1FZTUJhQUZFckEKWGJBMk1nb1UzZXU1dDJXOVF2OXp5UnRBTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3RFFZSktvWklodmNOQVFFTApCUUFEZ2dFQkFIU1d2SE9WS3lEUkUrenlIbXVQeTQ0WjlyeHVwRkZUMENROTV4VnJsME9ERWo2eUJZdTlMTEE4CnBNYVNsM1kzK25ZV0U2NGpoaXFQSjdRS3l1Z2wyUHI0MUNLUWRBQ0tjbjUwRlZvRVpsQ2hiZFdPc3ZXWUtZcjQKbDlNdGFHQ0ZKTXNCWkp3SlQyZitXeHllL3U2emhyUjJVWE4zY2tSM3o4TmdhRkdtc20rYXcrUURndm5jclZ4MApmQ09aRmMreEVyTFp5RElrNEhXTXlRV3dDU1dMN1ZLWE4xVDNCMTZNd2x1MzB5OU8wWDc0UG1MNGxYZEU4ZFVrCkNRSXhBT29tT3NRek9pQ2QvRkJZSk83Smx2RC9CNjB0ZjRTZTdESWd2ZFhQZFp6MnIwSW5kS0RsR1pWcVdDdFQKM0h4R3RKZ3MrSnk3Vyt1V21vL1B4V2xkZ1hlSEwvOD0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
-  tls.key: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRRE1kcmQ3K0tHWFdZbFgKMVpuM25tWmpVYkhNdEk5RUIxOVN5STdBTWRkR3N4Q082cFF2NmVURDdvRGR4eUNKTlVIRXpreWFOa2hkSXAvKwpqL05URDNKdVFLSUg0bmg0QjFDQjNhZGJZZUxaUXJ1YXQvZXlqb1JpVlFIOFIrUy9XWmF6Ty9vYWhUYWRoMnpqCkNwS3VlRHFHalBOL3hNa21DNmpuai9yVUxkL1FSeE9zU2djQXVHbjdwajlxd1M3blR1VWN1dGEzelVmOUxKM3kKMEFGK0J3eHZjMm1EZUwyaVlQOWM0a0lCZ0ZLNyt1RjlTbjcyVlN6Uk5iNThzSE9QTWhXMC9mMWhRdWlXODNwOQpUTU84VzNPZHpwU3gxWGtnV1dpSHZEOHYvUVNTZVA3WkJsSFRWbnlWd0E2dUJkek1jZDk3TnFGUDZ0Y1J5d3duCnpUVDRYbHRyQWdNQkFBRUNnZ0VBSGJrOGRLeWJ3VEdSQW5zdVJqaDVlMWdnV0RsVTE4enRQS1JQVnYxbjVhMUQKd1BoZjBUOVlDY0Vkd1hWTFNPY1J4K3lURWtWd2xsUTI4aWpoeWd5NjAvQllIZEZSNEx2S0ptR2ZZaGVFTDVWcgpTZE5vdk8vSnF3bmZTZ1QyNmlKa3JXc1FzWDVLM0VmREQrdmZrR0dHRUpLNUZncWprS3V0UXZkRUV2TVZwYm9NCmwyT3FObTNlVzV6ajhaUDluSDRCTWVFRkRDWjRremh1ZU5WTjZQSTJ1MVNQYndrVVk4NVRJUUg2STlqTW03Z2cKM0RiUS94aU14TFBmck9Rc2tYS2pOK21MSzIxYlRjS0JHOGFLZFU2NWRBdDV5RzArUElFTkM2d0pObExnZ3BZWAozcTdYVm9KU0ZsODhQOTlZTHozaFVwQmtrNnlESEtBWXRHcFZUMVFqSVFLQmdRRCtMQTl0WjYySUV1NmwzN3FBCmFQeU1janNkb1kxNm1ybTVlUUlRS041T0hSbEZHQURkMmdXL0g2Mk1vOUo2YWFQbG9zUGZQZnpFeEdPWDFiYVoKU25pTm5YYmM5Q0p0dmlXSldTbmNlVFBKNVQ4Q2F6WDJpZ2syOU1EYzg3S1BRL1VmdzJYU2pNWHEvQWNEOTUwVQpnZWVUam5JbnNUOGNHWU9KdEMvYjIrRk8wd0tCZ1FETjd5UkJPb2VGUFR3WlY2YitCQTRvbHZNZExGNEZROEVKCjg5R0YrSmp4akZ0U2FnNm1CaWdDOElaYzB5cGlhM2hwbVlKUFlZZ0tzQkR0WE5ZcWNPSjJzMzg3enNJdW9aNVgKT05GYS9KMjZPL3Z6c1FBK0RyRStFMy9QdXZRemF2YVlKUU5xREQ5NkQ4V3duVVVVV24vUjdFRnhwWVV5QzVmagpFQVl6MHlGU0NRS0JnUUNNckhZZFp6UjBDNFpwNTltaEdIb3VnVXFXcThOU0NEQ2lwb2F0eXZDKzZ2d0JjYmVKCkVoSDhKZHczNnJPamJMUjVkQXhVa2twRDNTNEI2eGFVNE5LNERsNnJDN1BDYVdyOUNZeFJxZ012eXVHRXhUR28Kc2QxSHZVN0ErMS9vU3dSd0FBVnE4dDdYbjRXQ2ZKbERzR0lyR0x1MW5EUUJxVjFUNlpaVGFPN2FZUUtCZ0J5dgppQ1JSNjlqQ2UrR24xUW9qTkhtdzlUS0dJSjZwSG5XdGNlMHdnTlY4MEtlOVFFY2VLbXFtYUlEN3BUYktjNTU2CkZLM01EekExOEZXd0RlRWhrbG9vakx1ZkJHdU1kY3IramlNWGR6MGU1K3k5SmlSKzFXK3BOYStSQWowN1ZCaEQKWjZOWkMycU1VZVJWTSs4dTRBazAyTFRrOHBYVENaaEdmaWF2N1Q5SkFvR0JBSkFvNXRhMWZHZVppQ0dMRGQwMwplQS9WMTBXVXFnMUg4NDVtQnN2RjBoSDcxZEQ5aHEvQkh2R1VPKzZHSStZU01wRklvYVBmZEVkZDMrRFhjTUVHCmM0V2FjZGhtL1V6QjV0YW5aRUFyV1JzVXV4S05vU1lMKzY3azFMT3NUOXBESnpvckVXcDRhV3RiTk5VZXIybUsKSTNQRzQ4VTd3NW82djEwNDBjWXlMT0ZaCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K
-type: kubernetes.io/tls
-
-```
-
-
-
-Note that `ssl_certificate` can be:
-- the name of a Kubernetes Secret (**in the same namespace as the TCP CR**) containing the certificated and key
-- or a filename/folder on the pod local filesystem
-
-More details below on both use cases
-
-### Using a TLS resource with a TCP CR frontend
-
-Instead of setting `ssl` and `ssl_certificate` directly on each TCP CR bind, you
-can attach a `TLS` resource to the HAProxy frontend generated by the TCP CR. This
-is useful when you want the TCP CR to define the listener and routing while the
-certificate reference is managed separately.
-
-A TCP CR frontend named `fe-http-echo-443` in namespace `test` is rendered in
-HAProxy as `tcpcr_test_fe-http-echo-443`. Use that generated frontend name in the
-TLS resource:
-
-```yaml
-apiVersion: ingress.v3.haproxy.org/v3
-kind: TCP
-metadata:
-  annotations:
-    ingress.class: haproxy
-  name: tcp-1
-  namespace: test
-spec:
-- frontend:
-    binds:
-      v4:
-        name: v4
-        port: 32766
     log_format: '%{+Q}o %t %s'
     name: fe-http-echo-443
     tcplog: true
@@ -455,92 +402,22 @@ metadata:
 spec:
   frontend: tcpcr_test_fe-http-echo-443
   secretName: tcp-test-cert
-```
+~~~
 
-The `tcp-test-cert` Secret must be in the same namespace as the `TLS` resource
-and contain `tls.crt` and `tls.key`. During reconciliation, the controller
-enables SSL on the TCP frontend bind and uses the certificate from the Secret.
-If the target frontend does not exist yet, the TLS resource will be applied after
-the TCP CR creates it.
+The `tcp-test-cert` Secret must be in the same namespace as the `TLS`
+resource and contain `tls.crt` and `tls.key`. The TLS resource stores the
+certificate in the shared frontend certificate directory. In cluster mode, the
+generated bind uses:
 
-**1. Using a Kubernetes Secret name**
+~~~text
+bind :32766 name v4 crt /etc/haproxy/certs/frontend ssl
+~~~
 
-You can use a Secret name in `ssl_certificate`.
-Then the cert + key will be written in the Pod filesystem in the below paths and used from there:
+In external mode, the directory is `<config-dir>/certs/frontend`, where
+`<config-dir>` is `/tmp/haproxy-ingress/etc` by default or the value of the
+controller's `--config-dir` argument.
 
-| IC in cluster mode     | IC out of cluster mode (external mode) |
-|------------------------|----------------------------------------|
-| /etc/haproxy/certs/tcp | \<config-dir\>/certs/tcp                 |
-
-where `<config-dir>` is:
-- `/tmp/haproxy-ingress/etc` by default
-- `--config-dir` IC start argument if set.
-
-
-
-
-**2. Using a Folder/filename**
-
-2-1. In cluster mode (IC Pod) : with a Kubernetes Secret
-
-The recommanded way of using a folder (or a filename) is to mount a secret volume like below in the Ingress Controller Pod (it's possible to use `extraVolumes` and `extraVolumeMounts` in the Helm Charts):
-
-```
-spec:
-  template:
-    spec:
-      containers:
-        ...
-        volumeMounts:
-          - mountPath: "/var/certs"
-            name: certs
-            readOnly: true
-      volumes:
-        - name: certs
-          secret:
-            secretName: tcp-test-cert
-```
-
-In the TCP CR, reference the volume mount path in `ssl_certificate`:
-```
-ssl_certificate: /var/certs
-```
-
-**Note that storing the certificates in the Pod image and using for `ssl_certificate` a path to it, is NOT recommanded.**
-
-
-2-2. External mode
-
-Using as `ssl_certificate` with a Kubernetes Secret name as presented above in 1- also works in external mode.
-It's also possibe to use a folder/filename in `external mode`, store the certificates there and reference this path as `ssl_certificate`.
-
-
-
-### Generated Frontend and Backend configuration:
-
-
-#### Frontend sections
-
-```
-frontend tcpcr_test_fe-http-echo-443
-  mode tcp
-  bind :32766 name v4 crt /etc/haproxy/certs/tcp/test_tcp-test-cert.pem ssl
-  bind [::]:32766 name v4v6 v4v6
-  log-format '%{+Q}o %t %s'
-  option tcplog
-  default_backend test_svc_http-echo_https
-
-```
-
-#### Backend sections
-
-```
-backend test_svc_http-echo_https
-  mode tcp
-  balance roundrobin
-  no option abortonclose
-  timeout server 50000
-  default-server check
-  server s8a3c0d9e2f14b6a7c5d1e0f 10.244.0.8:8443 enabled
-  server s1f2e3d4c5b6a79880716253 [fd00:10:244::8]:8443 enabled
-```
+The TLS resource also enables SSL on every bind of the referenced frontend. The
+explicit `ssl: true` in the TCP CR makes the TCP listener's intent clear and
+ensures it uses the frontend certificate directory even before the TLS resource
+is reconciled.
